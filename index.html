@@ -385,7 +385,7 @@
             }
         }
 
-        // --- 4. ADDED: DOWNLOAD REPORT FUNCTION ---
+        // --- 4. ADDED: DOWNLOAD REPORT FUNCTION (FILTERED FOR INTRUDERS) ---
         async function downloadReport() {
             const btn = document.getElementById('downloadBtn');
             btn.disabled = true;
@@ -403,9 +403,31 @@
                     return;
                 }
 
-                // Convert to CSV
-                let csv = "Time,Distance,Light,Motion\n";
-                data.forEach(row => {
+                // Filter logic to only include actual "Intruder" events based on Lambda thresholds
+                const intruderOnlyData = data.filter(row => {
+                    let score = 0;
+                    const distance = Number(row.distance || 0);
+                    const light = Number(row.light_level || 0);
+                    const motion = Number(row.motion_detected || 0);
+
+                    // Logic matching your Lambda: Any single trigger scores 2 points
+                    if (distance > 0 && distance < 200) score += 2;
+                    if (motion === 1) score += 2;
+                    if (light > 450) score += 2;
+                    
+                    return score >= 2; 
+                });
+
+                if (intruderOnlyData.length === 0) {
+                    alert("No actual intrusions detected in the last 100 readings.");
+                    btn.disabled = false;
+                    btn.innerText = "📥 Download Report";
+                    return;
+                }
+
+                // Convert filtered data to CSV
+                let csv = "Time,Distance(cm),Light(lux),Motion\n";
+                intruderOnlyData.forEach(row => {
                     csv += `${new Date(row.time).toLocaleString()},${row.distance},${row.light_level},${row.motion_detected}\n`;
                 });
 
@@ -414,7 +436,7 @@
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement("a");
                 a.href = url;
-                a.download = "MaxGuard_Report.csv";
+                a.download = "MaxGuard_Intruder_Report.csv";
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
@@ -530,8 +552,8 @@
             // --- CHECK INTRUDER STATUS (STRICT LOGIC: >= 2 Points = Alert) ---
             let score = 0;
             if (distance > 0 && distance < 200) score += 2; // Close Proximity (Danger)
-            if (motion_detected) score += 2;                // Motion (Strict: 2 points)
-            if (light_level > 450) score += 2;              // Bright Light (Strict: 2 points)
+            if (motion_detected) score += 2;                // Motion (Strict: 2 points)
+            if (light_level > 450) score += 2;              // Bright Light (Strict: 2 points)
 
             // Alert if Score >= 2 (Matches Email Logic)
             const statusEl = document.getElementById('sys-status');
