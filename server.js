@@ -81,8 +81,18 @@ device.on('error', (err) => {
     console.error('❌ IoT error:', err.message);
 });
 
-// Start server on port 3000
-server.listen(3000, () => {
-    console.log('🚀 Dashboard server running on http://localhost:3000');
+// Start server on configurable port (default 3000)
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+    console.log(`🚀 Dashboard server running on http://localhost:${PORT}`);
     console.log('📲 Waiting for MQTT messages...');
+});
+
+server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+        console.error(`❌ Port ${PORT} is already in use. Set a free port with PORT env (e.g., PORT=4001) or stop the other process.`);
+    } else {
+        console.error('❌ Server error:', err.message);
+    }
+    process.exit(1);
 });

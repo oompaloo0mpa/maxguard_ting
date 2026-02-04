@@ -42,6 +42,18 @@
             gap: 10px;
         }
 
+        /* START OF NEW BUTTON STYLES */
+        .power-btn { padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer; font-weight: bold; margin-left: 20px; transition: background 0.3s; } /* the on/off button strat: styling for button layout */
+        .power-btn.on { background-color: #e74c3c; color: white; } /* the on/off button strat: red style when system is running */
+        .power-btn.off { background-color: #2ecc71; color: white; } /* the on/off button strat: green style when system is paused */
+        .power-btn:disabled { opacity: 0.7; cursor: not-allowed; } /* the on/off button strat: dim button while loading */
+
+        /* --- ADDED FOR S3 DOWNLOAD FEATURE --- */
+        .download-btn { padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer; font-weight: bold; margin-left: 10px; transition: background 0.3s; background-color: #3498db; color: white; }
+        .download-btn:hover { background-color: #2980b9; }
+        .download-btn:disabled { opacity: 0.7; cursor: not-allowed; }
+        /* ------------------------------------- */
+
         .status-badge {
             display: flex;
             align-items: center;
@@ -198,6 +210,10 @@
                 <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
             </svg>
             IntrusionGuard
+            <div>
+                <button id="downloadBtn" class="download-btn" onclick="downloadReport()">📥 Download Report</button>
+                <button id="powerBtn" class="power-btn on" onclick="togglePower()">STOP SYSTEM</button> 
+            </div>
         </h1>
         <div class="status-badge">
             <div class="status-dot"></div>
@@ -218,7 +234,7 @@
             <div class="sensor-card purple">
                 <div>
                     <div class="sensor-label">Distance (Ultrasonic)</div>
-                    <div class="sensor-value" id="dist-val">150</div>
+                    <div class="sensor-value" id="dist-val">--</div>
                     <div style="font-size: 12px;">cm</div>
                 </div>
                 <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
@@ -229,7 +245,7 @@
             <div class="sensor-card green">
                 <div>
                     <div class="sensor-label">Light Level</div>
-                    <div class="sensor-value" id="light-val">450</div>
+                    <div class="sensor-value" id="light-val">--</div>
                     <div style="font-size: 12px;">lux</div>
                 </div>
                 <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
@@ -297,7 +313,11 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         // --- 1. CONFIGURATION ---
-        const WS_URL = "ws://localhost:3000"; // WebSocket connection to server
+        // ADDED: API URL FROM YOUR SCREENSHOT (yge6fdq3va)
+        const BACKEND_API_URL = "https://yge6fdq3va.execute-api.ap-southeast-1.amazonaws.com/maxguard_backend";
+        
+        const wsHost = location.host && location.host.length > 0 ? location.host : 'localhost:4001';
+        const WS_URL = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${wsHost}`; // Match current host/port or fallback
         let ws = null;
 
         // --- 2. SETUP THE CHARTS ---
@@ -342,7 +362,70 @@
             options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true }, x: { display: false } } }
         });
 
-        // --- 3. CONNECT TO WEBSOCKET ---
+        // --- 3. ADDED: FETCH HISTORY (For Charts on Load) ---
+        async function loadHistory() {
+            try {
+                // Ask backend for last 20 records
+                const res = await fetch(BACKEND_API_URL + "?limit=20");
+                const data = await res.json();
+                const history = data.reverse(); 
+
+                history.forEach(item => {
+                    const t = new Date(item.time).toLocaleTimeString('en-US', { hour12: false });
+                    labels.push(t);
+                    distData.push(item.distance);
+                    lightData.push(item.light_level);
+                });
+
+                distanceChart.update();
+                lightChart.update();
+            } catch (err) {
+                console.error("History fetch failed:", err);
+            }
+        }
+
+        // --- 4. ADDED: DOWNLOAD REPORT FUNCTION ---
+        async function downloadReport() {
+            const btn = document.getElementById('downloadBtn');
+            btn.disabled = true;
+            btn.innerText = "Generating...";
+
+            try {
+                // Fetch last 100 records
+                const res = await fetch(BACKEND_API_URL + "?limit=100");
+                const data = await res.json();
+                
+                if (!data || data.length === 0) {
+                    alert("No data found.");
+                    btn.disabled = false;
+                    btn.innerText = "📥 Download Report";
+                    return;
+                }
+
+                // Convert to CSV
+                let csv = "Time,Distance,Light,Motion\n";
+                data.forEach(row => {
+                    csv += `${new Date(row.time).toLocaleString()},${row.distance},${row.light_level},${row.motion_detected}\n`;
+                });
+
+                // Trigger Download
+                const blob = new Blob([csv], { type: 'text/csv' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = "MaxGuard_Report.csv";
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            } catch (err) {
+                console.error(err);
+                alert("Download failed");
+            }
+            btn.disabled = false;
+            btn.innerText = "📥 Download Report";
+        }
+
+        // --- 5. CONNECT TO WEBSOCKET ---
         function connectWebSocket() {
             try {
                 ws = new WebSocket(WS_URL);
@@ -382,22 +465,33 @@
         function updateDashboard(payload) {
             const distance = Number(payload.distance || 0);
             const light_level = Number(payload.light_level || 0);
-            const motion_detected = payload.motion_detected === true || payload.motion_detected === 'true';
+            const motion_detected =
+                payload.motion_detected === true ||
+                payload.motion_detected === 'true' ||
+                payload.motion_detected === 1 ||
+                payload.motion_detected === '1';
 
             // Update sidebar values
             document.getElementById('dist-val').innerText = distance;
             document.getElementById('light-val').innerText = light_level;
             document.getElementById('motion-val').innerText = motion_detected ? 'DETECTED' : 'None';
 
-            // Update status
+            // --- CHECK INTRUDER STATUS (STRICT LOGIC: >= 2 Points = Alert) ---
+            let score = 0;
+            if (distance > 0 && distance < 200) score += 2; // Close Proximity (Danger)
+            if (motion_detected) score += 2;                // Motion (Strict: 2 points)
+            if (light_level > 450) score += 2;              // Bright Light (Strict: 2 points)
+
+            // Alert if Score >= 2 (Matches Email Logic)
             const statusEl = document.getElementById('sys-status');
-            if (motion_detected) {
+            if (score >= 2) {
                 statusEl.innerText = 'INTRUSION ALERT';
                 statusEl.className = 'system-status status-alarm';
             } else {
                 statusEl.innerText = 'System Normal';
                 statusEl.className = 'system-status status-normal';
             }
+            // -----------------------------------------------------
 
             document.getElementById('last-updated').innerText = new Date().toLocaleTimeString();
 
@@ -415,11 +509,49 @@
             distanceChart.update();
             lightChart.update();
             
-            console.log('✅ Dashboard updated - Distance:', distance, 'Light:', light_level, 'Motion:', motion_detected);
+            console.log('✅ Dashboard updated - Score:', score);
         }
 
-        // Start WebSocket connection on page load
-        connectWebSocket();
+        // Start WebSocket connection on page load (AND Load History)
+        window.onload = function() {
+            loadHistory();     // <-- Added: Fetch history on start
+            connectWebSocket();
+        };
+
+        // --- NEW BUTTON LOGIC ---
+        let isSystemOn = true; // the on/off button strat: variable to track if system is running
+        async function togglePower() { // the on/off button strat: main function called by button click
+            const btn = document.getElementById('powerBtn'); // the on/off button strat: grab button element
+            const action = isSystemOn ? "OFF" : "ON"; // the on/off button strat: decide whether to kill or start
+            
+            btn.disabled = true; // the on/off button strat: prevent double clicking
+            btn.innerText = "Processing..."; // the on/off button strat: visual feedback for user
+            
+            try { // the on/off button strat: safe network call wrapper
+                // Keeps your original URL (f5pvdids5i) for the toggle
+                const res = await fetch("https://f5pvdids5i.execute-api.ap-southeast-1.amazonaws.com/default/M5Toggle", { // the on/off button strat: hit your specific API gateway
+                    method: "POST", // the on/off button strat: standard post request
+                    headers: {"Content-Type": "application/json"}, // the on/off button strat: header config
+                    body: JSON.stringify({action: action}) // the on/off button strat: send the command payload
+                }); // the on/off button strat: end of fetch call
+                
+                if (res.ok) { // the on/off button strat: if server said 200 OKs
+                    isSystemOn = !isSystemOn; // the on/off button strat: flip the logic switch
+                    btn.className = isSystemOn ? "power-btn on" : "power-btn off"; // the on/off button strat: change css class (red/green)
+                    btn.innerText = isSystemOn ? "STOP SYSTEM" : "START SYSTEM"; // the on/off button strat: update button label
+                } else { // the on/off button strat: if server error
+                    alert("Failed to toggle power."); // the on/off button strat: alert user
+                } // the on/off button strat: end if/else
+            } catch(e) { // the on/off button strat: catch network errors
+                console.error(e); // the on/off button strat: log error
+                alert("Network Error - Check Console"); // the on/off button strat: alert user
+            } // the on/off button strat: end catch
+            
+            btn.disabled = false; // the on/off button strat: re-enable button
+            // If failed, revert text logic is handled by not updating 'isSystemOn' above
+            if (!btn.disabled && isSystemOn) btn.innerText = "STOP SYSTEM"; // the on/off button strat: safety text reset
+            if (!btn.disabled && !isSystemOn) btn.innerText = "START SYSTEM"; // the on/off button strat: safety text reset
+        } // the on/off button strat: end function
     </script>
 </body>
 

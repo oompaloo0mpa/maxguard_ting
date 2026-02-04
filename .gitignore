@@ -1,1 +1,13 @@
 node_modules/
+# Ensure node_modules is untracked everywhere
+git rm -r --cached node_modules
+git rm -r --cached new_backend/node_modules my_maxguard_backend/node_modules 2>$null
+
+# (Optional) also untrack any lambda.zip you may have added
+git rm --cached lambda.zip 2>$null
+
+# Commit the cleanup
+git commit -m "Remove node_modules and build artifacts"
+
+# Push again
+git push -u origin main
