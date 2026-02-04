@@ -212,6 +212,7 @@
             IntrusionGuard
             <div>
                 <button id="downloadBtn" class="download-btn" onclick="downloadReport()">📥 Download Report</button>
+                <button id="testPostBtn" class="download-btn" style="background-color:#8e44ad" onclick="postTestReading()">🚀 Send Test Reading</button>
                 <button id="powerBtn" class="power-btn on" onclick="togglePower()">STOP SYSTEM</button> 
             </div>
         </h1>
@@ -313,8 +314,8 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         // --- 1. CONFIGURATION ---
-        // ADDED: API URL FROM YOUR SCREENSHOT (yge6fdq3va)
-        const BACKEND_API_URL = "https://yge6fdq3va.execute-api.ap-southeast-1.amazonaws.com/maxguard_backend";
+        // Use API Gateway /readings endpoint directly (supports GET & POST)
+        const API_READINGS = "https://yge6fdq3va.execute-api.ap-southeast-1.amazonaws.com/readings";
         
         const wsHost = location.host && location.host.length > 0 ? location.host : 'localhost:4001';
         const WS_URL = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${wsHost}`; // Match current host/port or fallback
@@ -365,8 +366,8 @@
         // --- 3. ADDED: FETCH HISTORY (For Charts on Load) ---
         async function loadHistory() {
             try {
-                // Ask backend for last 20 records
-                const res = await fetch(BACKEND_API_URL + "?limit=20");
+                // Ask API Gateway for last 20 records
+                const res = await fetch(API_READINGS + "?limit=20");
                 const data = await res.json();
                 const history = data.reverse(); 
 
@@ -392,7 +393,7 @@
 
             try {
                 // Fetch last 100 records
-                const res = await fetch(BACKEND_API_URL + "?limit=100");
+                const res = await fetch(API_READINGS + "?limit=100");
                 const data = await res.json();
                 
                 if (!data || data.length === 0) {
@@ -423,6 +424,35 @@
             }
             btn.disabled = false;
             btn.innerText = "📥 Download Report";
+        }
+
+        // --- POST a test reading to /readings (API Gateway) ---
+        async function postTestReading() {
+            const btn = document.getElementById('testPostBtn');
+            btn.disabled = true;
+            btn.innerText = "Sending...";
+            try {
+                const payload = {
+                    device_id: 1,
+                    time: new Date().toISOString(),
+                    distance: 123,
+                    light_level: 456,
+                    motion_detected: true
+                };
+                const res = await fetch(API_READINGS, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (!res.ok) throw new Error(`POST failed: ${res.status}`);
+                console.log('POSTed test reading', payload);
+                alert('Test reading sent. Check DynamoDB/GET.');
+            } catch (err) {
+                console.error(err);
+                alert('Failed to send test reading');
+            }
+            btn.disabled = false;
+            btn.innerText = "🚀 Send Test Reading";
         }
 
         // --- 5. CONNECT TO WEBSOCKET ---
