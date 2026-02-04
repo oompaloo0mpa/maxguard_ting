@@ -5,6 +5,36 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>IntrusionGuard Dashboard</title>
+
+    <script>
+        const COGNITO_DOMAIN = "maxguard-login.auth.ap-southeast-1.amazoncognito.com";
+        const CLIENT_ID = "5onsg41bca6fu4otcilflfji40j";
+        const REDIRECT_URI = window.location.origin + window.location.pathname;
+
+        // Function to kick user to Login Page
+        function redirectToLogin() {
+            window.location.href = `https://${COGNITO_DOMAIN}/login?client_id=${CLIENT_ID}&response_type=code&scope=email+openid+profile&redirect_uri=${REDIRECT_URI}`;
+        }
+
+        // Function to handle Logout
+        function logout() {
+            localStorage.removeItem('userToken');
+            window.location.href = `https://${COGNITO_DOMAIN}/logout?client_id=${CLIENT_ID}&logout_uri=${REDIRECT_URI}`;
+        }
+
+        // Check for "code" in URL (returned from Cognito)
+        const urlParams = new URLSearchParams(window.location.search);
+        const authCode = urlParams.get('code');
+
+        if (authCode) {
+            // User just logged in, save flag and clean URL
+            localStorage.setItem('userToken', authCode);
+            window.history.replaceState({}, document.title, window.location.pathname);
+        } else if (!localStorage.getItem('userToken')) {
+            // No token found, kick to login
+            redirectToLogin();
+        }
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         /* CSS Styling to match the 'FrostGuard' look */
@@ -53,6 +83,10 @@
         .download-btn:hover { background-color: #2980b9; }
         .download-btn:disabled { opacity: 0.7; cursor: not-allowed; }
         /* ------------------------------------- */
+
+        /* LOGOUT BUTTON STYLE */
+        .logout-btn { padding: 8px 16px; border-radius: 6px; border: 1px solid #ddd; cursor: pointer; font-weight: bold; margin-left: 10px; background-color: white; color: #666; }
+        .logout-btn:hover { background-color: #f5f5f5; }
 
         .status-badge {
             display: flex;
@@ -214,6 +248,7 @@
                 <button id="downloadBtn" class="download-btn" onclick="downloadReport()">📥 Download Report</button>
                 <button id="testPostBtn" class="download-btn" style="background-color:#8e44ad" onclick="postTestReading()">🚀 Send Test Reading</button>
                 <button id="powerBtn" class="power-btn on" onclick="togglePower()">STOP SYSTEM</button> 
+                <button class="logout-btn" onclick="logout()">🚪 Logout</button>
             </div>
         </h1>
         <div class="status-badge">
