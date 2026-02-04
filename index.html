@@ -316,7 +316,7 @@
         // --- 1. CONFIGURATION ---
         // Use API Gateway /readings endpoint directly (supports GET & POST)
         const API_READINGS = "https://yge6fdq3va.execute-api.ap-southeast-1.amazonaws.com/readings";
-        
+        const ENABLE_WS = new URLSearchParams(location.search).get('ws') === '1'; // opt-in only
         const wsHost = location.host && location.host.length > 0 ? location.host : 'localhost:4001';
         const WS_URL = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${wsHost}`; // Match current host/port or fallback
         let ws = null;
@@ -456,7 +456,29 @@
         }
 
         // --- 5. CONNECT TO WEBSOCKET ---
+        async function pollLatest() {
+            try {
+                const res = await fetch(API_READINGS + "?limit=1");
+                const data = await res.json();
+                if (Array.isArray(data) && data.length > 0) {
+                    updateDashboard(data[0]);
+                }
+            } catch (err) {
+                console.warn('Polling failed', err);
+            }
+        }
+
+        function startPolling() {
+            pollLatest();
+            setInterval(pollLatest, 5000);
+        }
+
         function connectWebSocket() {
+            if (!ENABLE_WS) {
+                document.querySelector('.status-dot').style.boxShadow = '0 0 5px orange';
+                console.log('WebSocket disabled; using API polling only');
+                return;
+            }
             try {
                 ws = new WebSocket(WS_URL);
 
@@ -475,19 +497,18 @@
                     }
                 };
 
-                ws.onerror = function (err) {
+                ws.onerror = function () {
                     console.warn('⚠️ WebSocket error');
                 };
 
                 ws.onclose = function () {
-                    console.log('❌ Connection closed. Reconnecting in 3s...');
-                    document.querySelector('.status-dot').style.boxShadow = '0 0 5px red';
-                    setTimeout(connectWebSocket, 3000);
+                    console.log('❌ Connection closed. Staying on API polling.');
+                    document.querySelector('.status-dot').style.boxShadow = '0 0 5px orange';
                 };
 
             } catch (err) {
                 console.error('Connection error:', err);
-                setTimeout(connectWebSocket, 3000);
+                document.querySelector('.status-dot').style.boxShadow = '0 0 5px orange';
             }
         }
 
@@ -544,7 +565,8 @@
 
         // Start WebSocket connection on page load (AND Load History)
         window.onload = function() {
-            loadHistory();     // <-- Added: Fetch history on start
+            loadHistory();
+            startPolling();
             connectWebSocket();
         };
 
