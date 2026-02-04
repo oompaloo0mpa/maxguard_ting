@@ -9,7 +9,8 @@
     <script>
         const COGNITO_DOMAIN = "maxguard-login.auth.ap-southeast-1.amazoncognito.com";
         const CLIENT_ID = "5onsg41bca6fu4otcilflfji40j";
-        const REDIRECT_URI = window.location.origin + window.location.pathname;
+        // ONLY CHANGED THIS LINE BELOW
+        const REDIRECT_URI = "https://main.d3s6cf1t0act0a.amplifyapp.com/";
 
         // Function to kick user to Login Page
         function redirectToLogin() {
@@ -587,8 +588,8 @@
             // --- CHECK INTRUDER STATUS (STRICT LOGIC: >= 2 Points = Alert) ---
             let score = 0;
             if (distance > 0 && distance < 200) score += 2; // Close Proximity (Danger)
-            if (motion_detected) score += 2;                // Motion (Strict: 2 points)
-            if (light_level > 450) score += 2;              // Bright Light (Strict: 2 points)
+            if (motion_detected) score += 2;                // Motion (Strict: 2 points)
+            if (light_level > 450) score += 2;              // Bright Light (Strict: 2 points)
 
             // Alert if Score >= 2 (Matches Email Logic)
             const statusEl = document.getElementById('sys-status');
