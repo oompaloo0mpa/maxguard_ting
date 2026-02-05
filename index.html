@@ -6,9 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>IntrusionGuard Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Amplify Auth (CDN) -->
-    <script src="https://cdn.jsdelivr.net/npm/@aws-amplify/core@5.x.x/dist/aws-amplify.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@aws-amplify/auth@5.x.x/dist/aws-amplify-auth.min.js"></script>
+    <!-- Amplify Auth (UMD bundle to avoid module export errors) -->
+    <script src="https://cdn.jsdelivr.net/npm/aws-amplify@5.x/dist/aws-amplify.min.js"></script>
     <style>
         /* CSS Styling to match the 'FrostGuard' look */
         :root {
