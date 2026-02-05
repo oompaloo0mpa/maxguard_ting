@@ -198,6 +198,27 @@
             font-size: 12px;
             color: var(--text-light);
         }
+
+        /* --- NEW: SYSTEM HEALTH INDICATOR STYLES --- */
+        .health-indicator {
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 10px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: bold;
+            border: 1px solid #ddd;
+        }
+        .health-ok { background-color: #d4edda; color: #155724; border-color: #c3e6cb; }
+        .health-alarm { background-color: #f8d7da; color: #721c24; border-color: #f5c6cb; animation: pulse-red 2s infinite; }
+        .health-loading { background-color: #fff3cd; color: #856404; }
+
+        @keyframes pulse-red {
+            0% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(231, 76, 60, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0); }
+        }
     </style>
 </head>
 
@@ -265,6 +286,11 @@
                     <path d="M23 7l-7 5 7 5V7z" />
                     <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
                 </svg>
+            </div>
+
+            <div id="health-badge" class="health-indicator health-loading">
+                <div id="health-dot" class="status-dot" style="background-color: #f1c40f;"></div>
+                <span>Checking Connection...</span>
             </div>
 
             <div>
@@ -605,6 +631,39 @@
             if (!btn.disabled && isSystemOn) btn.innerText = "STOP SYSTEM"; // the on/off button strat: safety text reset
             if (!btn.disabled && !isSystemOn) btn.innerText = "START SYSTEM"; // the on/off button strat: safety text reset
         } // the on/off button strat: end function
+
+        // --- NEW: CLOUDWATCH ALARM CHECKER ---
+        async function checkSystemHealth() {
+            const badge = document.getElementById('health-badge');
+            const dot = document.getElementById('health-dot');
+            const label = badge.querySelector('span');
+
+            try {
+                // Calling your existing API with a flag to check the Alarm status
+                const res = await fetch(API_READINGS + "?checkHealth=1");
+                const data = await res.json();
+
+                // data.state should return 'OK', 'ALARM', or 'INSUFFICIENT_DATA'
+                if (data.state === 'ALARM') {
+                    badge.className = 'health-indicator health-alarm';
+                    dot.style.backgroundColor = '#e74c3c';
+                    dot.style.boxShadow = '0 0 8px #e74c3c';
+                    label.innerText = 'DEVICE OFFLINE';
+                } else if (data.state === 'OK') {
+                    badge.className = 'health-indicator health-ok';
+                    dot.style.backgroundColor = '#2ecc71';
+                    dot.style.boxShadow = '0 0 8px #2ecc71';
+                    label.innerText = 'DEVICE ONLINE';
+                }
+            } catch (err) {
+                console.warn("Health check failed", err);
+            }
+        }
+
+        // Start checking health every 30 seconds
+        setInterval(checkSystemHealth, 30000);
+        // Run once on load
+        checkSystemHealth();
     </script>
 </body>
 
