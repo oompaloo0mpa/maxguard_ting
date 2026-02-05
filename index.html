@@ -212,7 +212,6 @@
             IntrusionGuard
             <div>
                 <button id="downloadBtn" class="download-btn" onclick="downloadReport()">📥 Download Report</button>
-                <button id="testPostBtn" class="download-btn" style="background-color:#8e44ad" onclick="postTestReading()">🚀 Send Test Reading</button>
                 <button id="powerBtn" class="power-btn on" onclick="togglePower()">STOP SYSTEM</button> 
             </div>
         </h1>
@@ -296,17 +295,17 @@
 
             <div class="stats-box">
                 <div class="stats-label">Avg Distance</div>
-                <div class="stats-value">145 cm</div>
+                <div class="stats-value" id="avg-dist">-- cm</div>
             </div>
 
             <div class="stats-box">
                 <div class="stats-label">Min Light Level</div>
-                <div class="stats-value">320 lux</div>
+                <div class="stats-value" id="min-light">-- lux</div>
             </div>
 
             <div class="stats-box">
                 <div class="stats-label">Intrusions Detected</div>
-                <div class="stats-value" style="color: var(--accent-red);">0</div>
+                <div class="stats-value" style="color: var(--accent-red);" id="intrusion-count">0</div>
             </div>
         </div>
     </div>
@@ -328,6 +327,7 @@
         let distData = [];
         let lightData = [];
         let labels = [];
+        let intrusionCount = 0;
 
         const distanceChart = new Chart(ctxDist, {
             type: 'line',
@@ -448,35 +448,6 @@
             btn.innerText = "📥 Download Report";
         }
 
-        // --- POST a test reading to /readings (API Gateway) ---
-        async function postTestReading() {
-            const btn = document.getElementById('testPostBtn');
-            btn.disabled = true;
-            btn.innerText = "Sending...";
-            try {
-                const payload = {
-                    device_id: 1,
-                    time: new Date().toISOString(),
-                    distance: 123,
-                    light_level: 456,
-                    motion_detected: true
-                };
-                const res = await fetch(API_READINGS, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                if (!res.ok) throw new Error(`POST failed: ${res.status}`);
-                console.log('POSTed test reading', payload);
-                alert('Test reading sent. Check DynamoDB/GET.');
-            } catch (err) {
-                console.error(err);
-                alert('Failed to send test reading');
-            }
-            btn.disabled = false;
-            btn.innerText = "🚀 Send Test Reading";
-        }
-
         // --- 5. CONNECT TO WEBSOCKET ---
         async function pollLatest() {
             try {
@@ -581,6 +552,14 @@
 
             distanceChart.update();
             lightChart.update();
+            
+            // Update Session Stats
+            if (score >= 2) intrusionCount++;
+            const avgDist = distData.length > 0 ? Math.round(distData.reduce((a,b) => a+b, 0) / distData.length) : 0;
+            const minLight = lightData.length > 0 ? Math.min(...lightData) : 0;
+            document.getElementById('avg-dist').innerText = avgDist + ' cm';
+            document.getElementById('min-light').innerText = minLight + ' lux';
+            document.getElementById('intrusion-count').innerText = intrusionCount;
             
             console.log('✅ Dashboard updated - Score:', score);
         }
