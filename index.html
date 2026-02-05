@@ -6,6 +6,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>IntrusionGuard Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Amplify Auth (CDN) -->
+    <script src="https://cdn.jsdelivr.net/npm/@aws-amplify/core@5.x.x/dist/aws-amplify.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@aws-amplify/auth@5.x.x/dist/aws-amplify-auth.min.js"></script>
     <style>
         /* CSS Styling to match the 'FrostGuard' look */
         :root {
@@ -203,6 +206,13 @@
 
 <body>
 
+    <div id="cognito-login" style="display:flex; gap:8px; align-items:center; margin-bottom:12px; flex-wrap:wrap;">
+        <input type="text" id="cognito-username" placeholder="Username" style="padding:6px 10px; border:1px solid #ddd; border-radius:6px;">
+        <input type="password" id="cognito-password" placeholder="Password" style="padding:6px 10px; border:1px solid #ddd; border-radius:6px;">
+        <button id="cognito-login-btn" class="download-btn" style="background-color:#1abc9c">Login</button>
+        <div id="cognito-status" style="font-size:12px; color:#7f8c8d;"></div>
+    </div>
+
     <div class="header">
         <h1>
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -312,6 +322,43 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // --- COGNITO CONFIG ---
+        Amplify.configure({
+            Auth: {
+                region: 'ap-southeast-1',
+                userPoolId: 'ap-southeast-1_DJAO7DTJZ',
+                userPoolWebClientId: '2rqv045jo7k6enjsh6ianjvgds'
+            }
+        });
+
+        async function checkUser() {
+            try {
+                const user = await Amplify.Auth.currentAuthenticatedUser();
+                document.getElementById('cognito-status').innerText = `Logged in as ${user.username}`;
+                console.log('User logged in:', user.username);
+            } catch (err) {
+                console.log('No user logged in');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            checkUser();
+            const btn = document.getElementById('cognito-login-btn');
+            btn.addEventListener('click', async () => {
+                const username = document.getElementById('cognito-username').value;
+                const password = document.getElementById('cognito-password').value;
+                try {
+                    const user = await Amplify.Auth.signIn(username, password);
+                    document.getElementById('cognito-status').innerText = `Logged in as ${user.username}`;
+                    console.log('Cognito user object:', user);
+                } catch (err) {
+                    document.getElementById('cognito-status').innerText = `Login failed: ${err.message}`;
+                    console.error(err);
+                }
+            });
+        });
+    </script>
     <script>
         // --- 1. CONFIGURATION ---
         // Use API Gateway /readings endpoint directly (supports GET & POST)
