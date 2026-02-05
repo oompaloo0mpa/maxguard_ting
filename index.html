@@ -7,7 +7,7 @@
     <title>MaxGuard Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        /* CSS Styling to match the 'FrostGuard' look */
+        /* CSS Stylez */
         :root {
             --bg-color: #eef2f9;
             --card-bg: #ffffff;
@@ -421,7 +421,7 @@
                 if (!data || data.length === 0) {
                     alert("No data found.");
                     btn.disabled = false;
-                    btn.innerText = "📥 Download Report";
+                    btn.innerText = "Download Report";
                     return;
                 }
 
@@ -443,7 +443,7 @@
                 if (intruderOnlyData.length === 0) {
                     alert("No actual intrusions detected in the last 100 readings.");
                     btn.disabled = false;
-                    btn.innerText = "📥 Download Report";
+                    btn.innerText = "Download Report";
                     return;
                 }
 
@@ -467,7 +467,7 @@
                 alert("Download failed");
             }
             btn.disabled = false;
-            btn.innerText = "📥 Download Report";
+            btn.innerText = "Download Report";
         }
 
         // --- 5. CONNECT TO WEBSOCKET ---

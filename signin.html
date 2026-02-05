@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign In - MaxGuard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            width: 100%;
+            max-width: 400px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            text-align: center;
+            font-size: 28px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 500;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e1e1e1;
+            border-radius: 5px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .message {
+            padding: 12px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .message.error {
+            background-color: #fee;
+            color: #c33;
+            border: 1px solid #fcc;
+        }
+
+        .message.success {
+            background-color: #efe;
+            color: #3c3;
+            border: 1px solid #cfc;
+        }
+
+        .links {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .links a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .links a:hover {
+            text-decoration: underline;
+        }
+
+        .forgot-password {
+            text-align: right;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Welcome Back</h1>
+        
+        <div id="message" class="message"></div>
+
+        <form id="signinForm">
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email" required>
+            </div>
+
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" required>
+                <div class="forgot-password">
+                    <a href="#" id="forgotPasswordLink">Forgot password?</a>
+                </div>
+            </div>
+
+            <button type="submit" class="btn" id="signinBtn">Sign In</button>
+        </form>
+
+        <div class="links">
+            Don't have an account? <a href="signup.html">Sign Up</a>
+        </div>
+    </div>
+
+    <!-- AWS Amplify Library -->
+    <script src="https://cdn.jsdelivr.net/npm/aws-amplify@5.3.11/dist/aws-amplify.min.js"></script>
+    <script src="cognito-config.js"></script>
+    <script>
+        const { Auth } = window['aws-amplify'];
+
+        const signinForm = document.getElementById('signinForm');
+        const messageDiv = document.getElementById('message');
+        const signinBtn = document.getElementById('signinBtn');
+        const forgotPasswordLink = document.getElementById('forgotPasswordLink');
+
+        function showMessage(message, type) {
+            messageDiv.textContent = message;
+            messageDiv.className = `message ${type}`;
+            messageDiv.style.display = 'block';
+        }
+
+        function hideMessage() {
+            messageDiv.style.display = 'none';
+        }
+
+        signinForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            hideMessage();
+
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            signinBtn.disabled = true;
+            signinBtn.textContent = 'Signing in...';
+
+            try {
+                const user = await Auth.signIn(email, password);
+                console.log('Sign in success:', user);
+                
+                showMessage('Sign in successful! Redirecting...', 'success');
+                
+                // Redirect to main app page after successful sign in
+                setTimeout(() => {
+                    window.location.href = 'index.html'; // Change to your main app page
+                }, 1500);
+
+            } catch (error) {
+                console.error('Sign in error:', error);
+                
+                let errorMessage = 'An error occurred during sign in';
+                
+                if (error.code === 'UserNotConfirmedException') {
+                    errorMessage = 'Please verify your email first';
+                    // Redirect to confirmation page
+                    setTimeout(() => {
+                        window.location.href = `confirm.html?email=${encodeURIComponent(email)}`;
+                    }, 2000);
+                } else if (error.code === 'NotAuthorizedException') {
+                    errorMessage = 'Incorrect email or password';
+                } else if (error.code === 'UserNotFoundException') {
+                    errorMessage = 'User not found';
+                } else if (error.code === 'InvalidParameterException') {
+                    errorMessage = 'Please enter both email and password';
+                } else if (error.message) {
+                    errorMessage = error.message;
+                }
+                
+                showMessage(errorMessage, 'error');
+                signinBtn.disabled = false;
+                signinBtn.textContent = 'Sign In';
+            }
+        });
+
+        forgotPasswordLink.addEventListener('click', async (e) => {
+            e.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            
+            if (!email) {
+                showMessage('Please enter your email address first', 'error');
+                return;
+            }
+
+            try {
+                await Auth.forgotPassword(email);
+                showMessage('Password reset code sent to your email', 'success');
+            } catch (error) {
+                console.error('Forgot password error:', error);
+                showMessage('Error sending reset code. Please try again.', 'error');
+            }
+        });
+    </script>
+</body>
+</html>

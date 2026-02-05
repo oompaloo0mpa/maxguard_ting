@@ -1,66 +1,68 @@
-const WebSocket = require('ws');
-const awsIot = require('aws-iot-device-sdk');
-const http = require('http');
+//No longer in user, using amplify keeping just in case LOL
 
-// Create HTTP server
-const server = http.createServer();
+// const WebSocket = require('ws');
+// const awsIot = require('aws-iot-device-sdk');
+// const http = require('http');
 
-// WebSocket server for browser clients
-const wss = new WebSocket.Server({ server });
+// // Create HTTP server
+// const server = http.createServer();
 
-// IoT MQTT connection (same as simple_iot.js)
-const device = awsIot.device({
-    keyPath: './certs/private.key',
-    certPath: './certs/certificate.crt',
-    caPath: './certs/AmazonRootCA1.pem',
-    clientId: 'mqtt-relay-' + Math.random().toString(36).substring(7),
-    host: 'adq3zf94hcaqm-ats.iot.ap-southeast-1.amazonaws.com'
-});
+// // WebSocket server for browser clients
+// const wss = new WebSocket.Server({ server });
 
-let connectedClients = [];
+// // IoT MQTT connection (same as simple_iot.js)
+// const device = awsIot.device({
+//     keyPath: './certs/private.key',
+//     certPath: './certs/certificate.crt',
+//     caPath: './certs/AmazonRootCA1.pem',
+//     clientId: 'mqtt-relay-' + Math.random().toString(36).substring(7),
+//     host: 'adq3zf94hcaqm-ats.iot.ap-southeast-1.amazonaws.com'
+// });
 
-// WebSocket connection handler
-wss.on('connection', (ws) => {
-    console.log('🌐 Browser client connected');
-    connectedClients.push(ws);
+// let connectedClients = [];
 
-    ws.on('close', () => {
-        console.log('🌐 Browser client disconnected');
-        connectedClients = connectedClients.filter(client => client !== ws);
-    });
+// // WebSocket connection handler
+// wss.on('connection', (ws) => {
+//     console.log('🌐 Browser client connected');
+//     connectedClients.push(ws);
 
-    ws.on('error', (err) => {
-        console.error('WebSocket error:', err.message);
-    });
-});
+//     ws.on('close', () => {
+//         console.log('🌐 Browser client disconnected');
+//         connectedClients = connectedClients.filter(client => client !== ws);
+//     });
 
-// IoT MQTT connection
-device.on('connect', function () {
-    console.log('✓ Connected to AWS IoT Core');
-    device.subscribe('topic_1');
-});
+//     ws.on('error', (err) => {
+//         console.error('WebSocket error:', err.message);
+//     });
+// });
 
-device.on('message', function (topic, payload) {
-    try {
-        const msg = JSON.parse(payload.toString());
-        console.log('📨 MQTT message:', msg);
+// // IoT MQTT connection
+// device.on('connect', function () {
+//     console.log('✓ Connected to AWS IoT Core');
+//     device.subscribe('topic_1');
+// });
 
-        // Broadcast to all connected browsers
-        connectedClients.forEach(client => {
-            if (client.readyState === WebSocket.OPEN) {
-                client.send(JSON.stringify(msg));
-            }
-        });
-    } catch (e) {
-        console.error('Parse error:', e);
-    }
-});
+// device.on('message', function (topic, payload) {
+//     try {
+//         const msg = JSON.parse(payload.toString());
+//         console.log('📨 MQTT message:', msg);
 
-device.on('error', (err) => {
-    console.error('IoT error:', err.message);
-});
+//         // Broadcast to all connected browsers
+//         connectedClients.forEach(client => {
+//             if (client.readyState === WebSocket.OPEN) {
+//                 client.send(JSON.stringify(msg));
+//             }
+//         });
+//     } catch (e) {
+//         console.error('Parse error:', e);
+//     }
+// });
 
-// Start WebSocket server on port 8080
-server.listen(8080, () => {
-    console.log('🚀 MQTT Relay running on ws://localhost:8080');
-});
+// device.on('error', (err) => {
+//     console.error('IoT error:', err.message);
+// });
+
+// // Start WebSocket server on port 8080
+// server.listen(8080, () => {
+//     console.log('🚀 MQTT Relay running on ws://localhost:8080');
+// });
