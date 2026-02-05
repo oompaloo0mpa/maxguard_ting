@@ -154,11 +154,15 @@
         </div>
     </div>
 
-    <!-- AWS Amplify Library -->
-    <script src="https://cdn.jsdelivr.net/npm/aws-amplify@5.3.11/dist/aws-amplify.min.js"></script>
+    <!-- Amazon Cognito Identity SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/amazon-cognito-identity-js@6.3.6/dist/amazon-cognito-identity.min.js"></script>
     <script src="cognito-config.js"></script>
     <script>
-        const { Auth } = window['aws-amplify'];
+        const poolData = {
+            UserPoolId: cognitoConfig.userPoolId,
+            ClientId: cognitoConfig.userPoolWebClientId
+        };
+        const userPool = new AmazonCognitoIdentity.CognitoUserPool(poolData);
 
         const signinForm = document.getElementById('signinForm');
         const messageDiv = document.getElementById('message');
@@ -185,45 +189,57 @@
             signinBtn.disabled = true;
             signinBtn.textContent = 'Signing in...';
 
-            try {
-                const user = await Auth.signIn(email, password);
-                console.log('Sign in success:', user);
-                
-                showMessage('Sign in successful! Redirecting...', 'success');
-                
-                // Redirect to main app page after successful sign in
-                setTimeout(() => {
-                    window.location.href = 'index.html'; // Change to your main app page
-                }, 1500);
+            const authenticationData = {
+                Username: email,
+                Password: password,
+            };
+            const authenticationDetails = new AmazonCognitoIdentity.AuthenticationDetails(authenticationData);
+            
+            const userData = {
+                Username: email,
+                Pool: userPool
+            };
+            const cognitoUser = new AmazonCognitoIdentity.CognitoUser(userData);
 
-            } catch (error) {
-                console.error('Sign in error:', error);
-                
-                let errorMessage = 'An error occurred during sign in';
-                
-                if (error.code === 'UserNotConfirmedException') {
-                    errorMessage = 'Please verify your email first';
-                    // Redirect to confirmation page
+            cognitoUser.authenticateUser(authenticationDetails, {
+                onSuccess: (result) => {
+                    console.log('Sign in success:', result);
+                    showMessage('Sign in successful! Redirecting...', 'success');
+                    
+                    // Redirect to main app page after successful sign in
                     setTimeout(() => {
-                        window.location.href = `confirm.html?email=${encodeURIComponent(email)}`;
-                    }, 2000);
-                } else if (error.code === 'NotAuthorizedException') {
-                    errorMessage = 'Incorrect email or password';
-                } else if (error.code === 'UserNotFoundException') {
-                    errorMessage = 'User not found';
-                } else if (error.code === 'InvalidParameterException') {
-                    errorMessage = 'Please enter both email and password';
-                } else if (error.message) {
-                    errorMessage = error.message;
+                        window.location.href = 'index.html';
+                    }, 1500);
+                },
+                onFailure: (err) => {
+                    console.error('Sign in error:', err);
+                    
+                    let errorMessage = 'An error occurred during sign in';
+                    
+                    if (err.code === 'UserNotConfirmedException') {
+                        errorMessage = 'Please verify your email first';
+                        showMessage(errorMessage, 'error');
+                        // Redirect to confirmation page
+                        setTimeout(() => {
+                            window.location.href = `confirm.html?email=${encodeURIComponent(email)}`;
+                        }, 2000);
+                        return;
+                    } else if (err.code === 'NotAuthorizedException') {
+                        errorMessage = 'Incorrect email or password';
+                    } else if (err.code === 'UserNotFoundException') {
+                        errorMessage = 'User not found';
+                    } else if (err.message) {
+                        errorMessage = err.message;
+                    }
+                    
+                    showMessage(errorMessage, 'error');
+                    signinBtn.disabled = false;
+                    signinBtn.textContent = 'Sign In';
                 }
-                
-                showMessage(errorMessage, 'error');
-                signinBtn.disabled = false;
-                signinBtn.textContent = 'Sign In';
-            }
+            });
         });
 
-        forgotPasswordLink.addEventListener('click', async (e) => {
+        forgotPasswordLink.addEventListener('click', (e) => {
             e.preventDefault();
             
             const email = document.getElementById('email').value;
@@ -233,13 +249,22 @@
                 return;
             }
 
-            try {
-                await Auth.forgotPassword(email);
-                showMessage('Password reset code sent to your email', 'success');
-            } catch (error) {
-                console.error('Forgot password error:', error);
-                showMessage('Error sending reset code. Please try again.', 'error');
-            }
+            const userData = {
+                Username: email,
+                Pool: userPool
+            };
+            const cognitoUser = new AmazonCognitoIdentity.CognitoUser(userData);
+
+            cognitoUser.forgotPassword({
+                onSuccess: (data) => {
+                    console.log('Forgot password success:', data);
+                    showMessage('Password reset code sent to your email', 'success');
+                },
+                onFailure: (err) => {
+                    console.error('Forgot password error:', err);
+                    showMessage('Error sending reset code. Please try again.', 'error');
+                }
+            });
         });
     </script>
 </body>

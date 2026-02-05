@@ -174,11 +174,15 @@
         </div>
     </div>
 
-    <!-- AWS Amplify Library -->
-    <script src="https://cdn.jsdelivr.net/npm/aws-amplify@5.3.11/dist/aws-amplify.min.js"></script>
+    <!-- Amazon Cognito Identity SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/amazon-cognito-identity-js@6.3.6/dist/amazon-cognito-identity.min.js"></script>
     <script src="cognito-config.js"></script>
     <script>
-        const { Auth } = window['aws-amplify'];
+        const poolData = {
+            UserPoolId: cognitoConfig.userPoolId,
+            ClientId: cognitoConfig.userPoolWebClientId
+        };
+        const userPool = new AmazonCognitoIdentity.CognitoUserPool(poolData);
 
         const confirmForm = document.getElementById('confirmForm');
         const messageDiv = document.getElementById('message');
@@ -228,41 +232,49 @@
             confirmBtn.disabled = true;
             confirmBtn.textContent = 'Verifying...';
 
-            try {
-                await Auth.confirmSignUp(email, code);
-                console.log('Confirmation success');
-                
+            const userData = {
+                Username: email,
+                Pool: userPool
+            };
+            const cognitoUser = new AmazonCognitoIdentity.CognitoUser(userData);
+
+            cognitoUser.confirmRegistration(code, true, (err, result) => {
+                if (err) {
+                    console.error('Confirmation error:', err);
+                    
+                    let errorMessage = 'An error occurred during verification';
+                    
+                    if (err.code === 'CodeMismatchException') {
+                        errorMessage = 'Invalid verification code';
+                    } else if (err.code === 'ExpiredCodeException') {
+                        errorMessage = 'Verification code has expired. Please request a new one.';
+                    } else if (err.code === 'NotAuthorizedException') {
+                        errorMessage = 'User is already confirmed';
+                        showMessage(errorMessage, 'error');
+                        setTimeout(() => {
+                            window.location.href = 'signin.html';
+                        }, 2000);
+                        return;
+                    } else if (err.message) {
+                        errorMessage = err.message;
+                    }
+                    
+                    showMessage(errorMessage, 'error');
+                    confirmBtn.disabled = false;
+                    confirmBtn.textContent = 'Verify Email';
+                    return;
+                }
+
+                console.log('Confirmation success:', result);
                 showMessage('Email verified successfully! Redirecting to sign in...', 'success');
                 
                 setTimeout(() => {
                     window.location.href = 'signin.html';
                 }, 2000);
-
-            } catch (error) {
-                console.error('Confirmation error:', error);
-                
-                let errorMessage = 'An error occurred during verification';
-                
-                if (error.code === 'CodeMismatchException') {
-                    errorMessage = 'Invalid verification code';
-                } else if (error.code === 'ExpiredCodeException') {
-                    errorMessage = 'Verification code has expired. Please request a new one.';
-                } else if (error.code === 'NotAuthorizedException') {
-                    errorMessage = 'User is already confirmed';
-                    setTimeout(() => {
-                        window.location.href = 'signin.html';
-                    }, 2000);
-                } else if (error.message) {
-                    errorMessage = error.message;
-                }
-                
-                showMessage(errorMessage, 'error');
-                confirmBtn.disabled = false;
-                confirmBtn.textContent = 'Verify Email';
-            }
+            });
         });
 
-        resendBtn.addEventListener('click', async () => {
+        resendBtn.addEventListener('click', () => {
             hideMessage();
 
             if (!email) {
@@ -273,33 +285,43 @@
             resendBtn.disabled = true;
             resendBtn.textContent = 'Sending...';
 
-            try {
-                await Auth.resendSignUp(email);
+            const userData = {
+                Username: email,
+                Pool: userPool
+            };
+            const cognitoUser = new AmazonCognitoIdentity.CognitoUser(userData);
+
+            cognitoUser.resendConfirmationCode((err, result) => {
+                if (err) {
+                    console.error('Resend error:', err);
+                    
+                    let errorMessage = 'Error resending code';
+                    
+                    if (err.code === 'LimitExceededException') {
+                        errorMessage = 'Too many requests. Please wait before trying again.';
+                    } else if (err.code === 'InvalidParameterException') {
+                        errorMessage = 'User is already confirmed';
+                        showMessage(errorMessage, 'error');
+                        setTimeout(() => {
+                            window.location.href = 'signin.html';
+                        }, 2000);
+                        return;
+                    } else if (err.message) {
+                        errorMessage = err.message;
+                    }
+                    
+                    showMessage(errorMessage, 'error');
+                    resendBtn.disabled = false;
+                    resendBtn.textContent = 'Resend Code';
+                    return;
+                }
+
+                console.log('Resend success:', result);
                 showMessage('Verification code sent! Please check your email.', 'success');
                 
                 resendBtn.disabled = false;
                 resendBtn.textContent = 'Resend Code';
-
-            } catch (error) {
-                console.error('Resend error:', error);
-                
-                let errorMessage = 'Error resending code';
-                
-                if (error.code === 'LimitExceededException') {
-                    errorMessage = 'Too many requests. Please wait before trying again.';
-                } else if (error.code === 'InvalidParameterException') {
-                    errorMessage = 'User is already confirmed';
-                    setTimeout(() => {
-                        window.location.href = 'signin.html';
-                    }, 2000);
-                } else if (error.message) {
-                    errorMessage = error.message;
-                }
-                
-                showMessage(errorMessage, 'error');
-                resendBtn.disabled = false;
-                resendBtn.textContent = 'Resend Code';
-            }
+            });
         });
 
         // Auto-format code input (optional)

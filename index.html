@@ -5,19 +5,30 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MaxGuard Dashboard</title>
-    <script src="https://cdn.jsdelivr.net/npm/aws-amplify@5.3.11/dist/aws-amplify.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/amazon-cognito-identity-js@6.3.6/dist/amazon-cognito-identity.min.js"></script>
     <script src="cognito-config.js"></script>
     <script>
         // Check authentication before loading page
-        (async function checkAuth() {
-            try {
-                const { Auth } = window['aws-amplify'];
-                await Auth.currentAuthenticatedUser();
-                // User is authenticated, continue loading page
-            } catch (error) {
+        (function checkAuth() {
+            const poolData = {
+                UserPoolId: cognitoConfig.userPoolId,
+                ClientId: cognitoConfig.userPoolWebClientId
+            };
+            const userPool = new AmazonCognitoIdentity.CognitoUserPool(poolData);
+            const cognitoUser = userPool.getCurrentUser();
+            
+            if (cognitoUser === null) {
                 // User is not authenticated, redirect to signin
                 window.location.href = 'signin.html';
+                return;
             }
+            
+            // Verify session is still valid
+            cognitoUser.getSession((err, session) => {
+                if (err || !session.isValid()) {
+                    window.location.href = 'signin.html';
+                }
+            });
         })();
     </script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -649,15 +660,18 @@
         } // the on/off button strat: end function
 
         // --- LOGOUT FUNCTION ---
-        async function logout() {
-            try {
-                const { Auth } = window['aws-amplify'];
-                await Auth.signOut();
-                window.location.href = 'signin.html';
-            } catch (error) {
-                console.error('Error signing out:', error);
-                alert('Error logging out. Please try again.');
+        function logout() {
+            const poolData = {
+                UserPoolId: cognitoConfig.userPoolId,
+                ClientId: cognitoConfig.userPoolWebClientId
+            };
+            const userPool = new AmazonCognitoIdentity.CognitoUserPool(poolData);
+            const cognitoUser = userPool.getCurrentUser();
+            
+            if (cognitoUser) {
+                cognitoUser.signOut();
             }
+            window.location.href = 'signin.html';
         }
 
         // --- NEW: CLOUDWATCH ALARM CHECKER ---
