@@ -6,8 +6,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>IntrusionGuard Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Amplify Auth (UMD bundle to avoid module export errors) -->
-    <script src="https://cdn.jsdelivr.net/npm/aws-amplify@5.x/dist/aws-amplify.min.js"></script>
     <style>
         /* CSS Styling to match the 'FrostGuard' look */
         :root {
@@ -314,41 +312,6 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script>
-        // --- COGNITO CONFIG ---
-        Amplify.configure({
-            Auth: {
-                region: 'ap-southeast-1',
-                userPoolId: 'ap-southeast-1_DJAO7DTJZ',
-                userPoolWebClientId: '2rqv045jo7k6enjsh6ianjvgds',
-                oauth: {
-                    domain: 'maxguard.auth.ap-southeast-1.amazoncognito.com',
-                    scope: ['openid','email','profile'],
-                    redirectSignIn: window.location.origin + '/index.html',
-                    redirectSignOut: window.location.origin + '/index.html',
-                    responseType: 'code'
-                }
-            }
-        });
-
-
-        // Check if user is logged in
-        async function checkUser() {
-            try {
-                const user = await Amplify.Auth.currentAuthenticatedUser();
-                console.log('User logged in:', user.username);
-            } catch (err) {
-                console.log('No user logged in, redirecting to Cognito login...');
-                // Redirect to hosted login page
-                Amplify.Auth.federatedSignIn();
-            }
-        }
-
-
-        document.addEventListener('DOMContentLoaded', () => {
-            checkUser();
-        });
-    </script>
     <script>
         // --- 1. CONFIGURATION ---
         // Use API Gateway /readings endpoint directly (supports GET & POST)
